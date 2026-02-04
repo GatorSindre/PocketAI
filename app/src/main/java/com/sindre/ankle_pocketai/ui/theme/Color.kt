@@ -1,4 +1,4 @@
-package com.sindre.testinggrounds.ui.theme
+package com.sindre.ankle_pocketai.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

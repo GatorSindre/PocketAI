@@ -1,4 +1,4 @@
-package com.sindre.testinggrounds
+package com.sindre.ankle_pocketai
 
 import org.junit.Test
 

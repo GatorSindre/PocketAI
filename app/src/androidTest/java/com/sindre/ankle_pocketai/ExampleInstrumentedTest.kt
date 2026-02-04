@@ -1,4 +1,4 @@
-package com.sindre.testinggrounds
+package com.sindre.ankle_pocketai
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

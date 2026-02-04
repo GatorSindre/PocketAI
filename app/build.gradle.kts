@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.sindre.testinggrounds"
+    namespace = "com.sindre.ankle_pocketai"
     compileSdk {
         version = release(36)
     }

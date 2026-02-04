@@ -1,6 +1,5 @@
-package com.sindre.testinggrounds.ui.theme
+package com.sindre.ankle_pocketai.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

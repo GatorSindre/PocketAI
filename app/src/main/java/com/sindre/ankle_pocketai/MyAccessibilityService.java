@@ -1,4 +1,4 @@
-package com.sindre.testinggrounds;
+package com.sindre.ankle_pocketai;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
