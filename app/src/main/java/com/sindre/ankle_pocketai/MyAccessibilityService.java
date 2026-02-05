@@ -7,7 +7,10 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
-
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -51,6 +54,46 @@ public class MyAccessibilityService extends AccessibilityService {
             Arrays.asList(true, false, true, true),     // Y  -.--
             Arrays.asList(true, true, false, false)     // Z  --..
     );
+
+    // Listener interface for callback
+    public interface Listener {
+        void onResponse(String text); // Response as UTF-8 string
+        void onError(Exception e);
+    }
+
+    // Single function to send bytes and get UTF-8 string response
+    public static void sendData(
+            String host,
+            int port,
+            byte[] data,
+            Listener listener
+    ) {
+        new Thread(() -> {
+            try (Socket socket = new Socket(host, port)) {
+                socket.setSoTimeout(60000); // optional timeout in ms
+
+                // SEND
+                OutputStream out = socket.getOutputStream();
+                out.write(data);
+                out.flush();
+
+                // RECEIVE
+                InputStream in = socket.getInputStream();
+                byte[] buffer = new byte[4096];
+
+                int bytesRead = in.read(buffer); // blocks until data arrives
+                if (bytesRead > 0) {
+                    // Convert to UTF-8 string
+                    String response = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
+                    listener.onResponse(response); // callback with string
+                }
+
+            } catch (Exception e) {
+                listener.onError(e); // callback on error
+            }
+        }).start();
+    }
+
 
     private Character morseToChar(List<Boolean> code) {
         int index = morseAlphabet.indexOf(code);
@@ -116,7 +159,23 @@ public class MyAccessibilityService extends AccessibilityService {
                     } else if (morseBuffer.equals(Arrays.asList(false, false))) {
                         sentenceBufferUpdate();
                         Log.d("PocketAI", "Sent '" + sentenceString + "' to ChatGPT");
+
+                        byte[] messageBytes = sentenceString.getBytes(StandardCharsets.UTF_8);
                         sentenceBuffer.clear();
+
+                        sendData("10.0.0.6", 8081, messageBytes, new Listener() {
+                            @Override
+                            public void onResponse(String text) {
+                                Log.d("PocketAI", "Server responded: " + text);
+                                // You could also trigger a notification, Toast, or other action here
+                            }
+
+                            @Override
+                            public void onError(Exception e) {
+                                Log.e("PocketAI", "Error sending data", e);
+                            }
+                        });
+
                     }
                 } else {
                     // Short press
