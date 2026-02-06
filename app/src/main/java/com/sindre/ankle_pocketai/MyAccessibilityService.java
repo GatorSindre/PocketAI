@@ -14,10 +14,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import android.speech.tts.TextToSpeech;
+import java.util.Locale;
 
 @SuppressLint("AccessibilityPolicy")
 public class MyAccessibilityService extends AccessibilityService {
 
+    private TextToSpeech tts;
+    private boolean ttsReady = false;
     private long timerVolumeUp = 0L;
     private long timerVolumeDown = 0L;
     private final int longPressDelay = 180;
@@ -61,16 +65,12 @@ public class MyAccessibilityService extends AccessibilityService {
         void onError(Exception e);
     }
 
-    // Single function to send bytes and get UTF-8 string response
-    public static void sendData(
-            String host,
-            int port,
-            byte[] data,
-            Listener listener
-    ) {
+    public static void sendData(String host, int port, byte[] data, Listener listener) {
         new Thread(() -> {
-            try (Socket socket = new Socket(host, port)) {
-                socket.setSoTimeout(60000); // optional timeout in ms
+            Socket socket = null;
+            try {
+                socket = new Socket(host, port);
+                socket.setSoTimeout(120000); // optional read timeout
 
                 // SEND
                 OutputStream out = socket.getOutputStream();
@@ -81,19 +81,17 @@ public class MyAccessibilityService extends AccessibilityService {
                 InputStream in = socket.getInputStream();
                 byte[] buffer = new byte[4096];
 
-                int bytesRead = in.read(buffer); // blocks until data arrives
+                int bytesRead = in.read(buffer); // will block until server responds or timeout
                 if (bytesRead > 0) {
-                    // Convert to UTF-8 string
                     String response = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
-                    listener.onResponse(response); // callback with string
+                    listener.onResponse(response);
                 }
 
             } catch (Exception e) {
-                listener.onError(e); // callback on error
+                listener.onError(e);
             }
         }).start();
     }
-
 
     private Character morseToChar(List<Boolean> code) {
         int index = morseAlphabet.indexOf(code);
@@ -117,6 +115,28 @@ public class MyAccessibilityService extends AccessibilityService {
         if (info != null) {
             info.flags |= AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
             setServiceInfo(info);
+        }
+
+        tts = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                int result = tts.setLanguage(Locale.US);
+                if (result == TextToSpeech.LANG_MISSING_DATA ||
+                        result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    Log.e("PocketAI", "TTS language not supported");
+                } else {
+                    ttsReady = true;
+                }
+            } else {
+                Log.e("PocketAI", "TTS initialization failed");
+            }
+        });
+    }
+
+    private void speak(String text) {
+        if (tts != null && ttsReady) {
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "tts1");
+        } else {
+            Log.d("PocketAI", "TTS not ready yet");
         }
     }
 
@@ -166,8 +186,9 @@ public class MyAccessibilityService extends AccessibilityService {
                         sendData("10.0.0.6", 8081, messageBytes, new Listener() {
                             @Override
                             public void onResponse(String text) {
+                                // text is the response from chatgpt
                                 Log.d("PocketAI", "Server responded: " + text);
-                                // You could also trigger a notification, Toast, or other action here
+                                speak(text);
                             }
 
                             @Override
@@ -208,5 +229,14 @@ public class MyAccessibilityService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         // No-op
+    }
+
+    @Override
+    public void onDestroy() {
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+        }
+        super.onDestroy();
     }
 }
